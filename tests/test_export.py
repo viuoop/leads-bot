@@ -30,8 +30,7 @@ def test_export_empty():
 
 def test_formula_like_values_are_text():
     lead = {"id": 1, "created_at": "d", "user_id": 5, "username": "=evil()",
-            "answers": {"name": "=1+1", "city": "Самара"}}
+            "answers": {"name": "=1+1", "city": "+380501234567"}}
     ws = openpyxl.load_workbook(BytesIO(export.leads_to_xlsx([lead], STEPS))).active
-    for c in (ws["D2"], ws["E2"]):
-        assert c.data_type == "s" and c.value.startswith("'")
-    assert ws["F2"].value == "Самара"
+    assert (ws["D2"].value, ws["E2"].value, ws["F2"].value) == ("=evil()", "=1+1", "+380501234567")
+    assert all(ws[c].data_type == "s" for c in ("D2", "E2", "F2"))
