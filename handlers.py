@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -36,7 +38,7 @@ async def ask(message: Message, i: int, remove_kb: bool = False) -> None:
         )
         await message.answer(step["prompt"], reply_markup=kb)
     elif step["type"] == "choice":
-        kb = _kb(*((o, f"lead:opt:{n}") for n, o in enumerate(step["options"])))
+        kb = _kb(*((o, f"lead:opt:{i}:{n}") for n, o in enumerate(step["options"])))
         await message.answer(step["prompt"], reply_markup=kb)
     else:
         await message.answer(step["prompt"], reply_markup=ReplyKeyboardRemove() if remove_kb else None)
@@ -94,22 +96,29 @@ async def cb_send(callback: CallbackQuery, state: FSMContext) -> None:
         await callback.answer()
         return
     await state.clear()  # before saving: a double tap finds no state
-    await callback.answer()
     user = callback.from_user
-    lead_id = db.add_lead(user.id, user.username, answers)
+    try:
+        lead_id = db.add_lead(user.id, user.username, answers)
+    except Exception:
+        logging.exception("add_lead failed")
+        await state.set_state(Form.step)
+        await state.set_data(data)
+        await callback.answer(TEXTS["save_error"], show_alert=True)
+        return
+    await callback.answer()
     await admin.notify_admins(callback.bot, lead_id, user, answers)
     if callback.message:
         await callback.message.edit_reply_markup(reply_markup=None)
-        await callback.message.answer(TEXTS["thanks"])
+        await callback.message.answer(TEXTS["thanks"], reply_markup=ReplyKeyboardRemove())
 
 
 @router.callback_query(F.data.startswith("lead:opt:"), Form.step)
 async def cb_option(callback: CallbackQuery, state: FSMContext) -> None:
     data = await state.get_data()
     i = data.get("i", len(STEPS))
-    idx = callback.data.removeprefix("lead:opt:")
-    if i >= len(STEPS) or STEPS[i]["type"] != "choice" or not idx.isdigit() \
-            or int(idx) >= len(STEPS[i]["options"]):
+    step_idx, _, idx = callback.data.removeprefix("lead:opt:").partition(":")
+    if i >= len(STEPS) or STEPS[i]["type"] != "choice" or step_idx != str(i) \
+            or not idx.isdigit() or int(idx) >= len(STEPS[i]["options"]):
         await callback.answer()
         return
     await callback.answer()
