@@ -1,7 +1,7 @@
 [project]
 name = "leads-bot"
 version = "0.1.0"
-description = "Add your description here"
+description = "Telegram-бот для сбора заявок с выгрузкой в Excel и уведомлениями админам"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
