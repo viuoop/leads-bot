@@ -26,3 +26,12 @@ def test_missing_answer_is_blank():
 
 def test_export_empty():
     assert len(_rows(export.leads_to_xlsx([], STEPS))) == 1
+
+
+def test_formula_like_values_are_text():
+    lead = {"id": 1, "created_at": "d", "user_id": 5, "username": "=evil()",
+            "answers": {"name": "=1+1", "city": "Самара"}}
+    ws = openpyxl.load_workbook(BytesIO(export.leads_to_xlsx([lead], STEPS))).active
+    for c in (ws["D2"], ws["E2"]):
+        assert c.data_type == "s" and c.value.startswith("'")
+    assert ws["F2"].value == "Самара"
