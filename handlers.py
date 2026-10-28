@@ -11,7 +11,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 import admin
 import db
-from config import STEPS, TEXTS
+from config import DEMO_MODE, STEPS, TEXTS
 from validators import check_text, parse_phone
 
 router = Router()
@@ -64,7 +64,7 @@ async def begin(message: Message, state: FSMContext) -> None:
 @router.message(Command("start"))
 async def cmd_start(message: Message, state: FSMContext) -> None:
     await state.clear()
-    await message.answer(TEXTS["start"], reply_markup=_kb((TEXTS["start_button"], "lead:start")))
+    await message.answer(TEXTS["demo_start" if DEMO_MODE else "start"], reply_markup=_kb((TEXTS["start_button"], "lead:start")))
 
 
 @router.message(Command("cancel"))

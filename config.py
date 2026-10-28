@@ -10,6 +10,8 @@ if not BOT_TOKEN:
 
 ADMIN_IDS = {int(x) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip()}
 DB_PATH = "leads.db"
+# demo for clients: everyone gets /export and /stats over their own leads plus a copy of the admin notification
+DEMO_MODE = os.getenv("DEMO_MODE", "").strip() == "1"
 
 STEPS = [
     {"key": "name", "title": "Имя", "type": "text", "prompt": "Как вас зовут?"},
@@ -32,4 +34,13 @@ TEXTS = {
     "cancelled": "Отменено. Чтобы начать заново, нажмите /start.",
     "save_error": "Не удалось сохранить заявку, попробуйте ещё раз.",
     "no_leads": "Заявок пока нет.",
+    "demo_start": (
+        "Это демо-бот для приёма заявок.\n\n"
+        "Оставьте тестовую заявку — после отправки придёт копия уведомления, "
+        "которое получает владелец бизнеса.\n\n"
+        "Команды владельца (в демо видны только ваши заявки):\n"
+        "/export — все заявки в Excel\n"
+        "/stats — статистика заявок"
+    ),
+    "demo_copy": "👀 Так эту заявку увидит владелец:",
 }

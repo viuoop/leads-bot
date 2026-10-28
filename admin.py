@@ -11,12 +11,18 @@ import db
 from export import leads_to_xlsx
 
 router = Router()
-router.message.filter(F.from_user.id.in_(config.ADMIN_IDS))
+if not config.DEMO_MODE:
+    router.message.filter(F.from_user.id.in_(config.ADMIN_IDS))
+
+
+def scope(message: Message) -> int | None:
+    """None = all leads (admin); otherwise only this user's leads (demo visitor)."""
+    return None if message.from_user.id in config.ADMIN_IDS else message.from_user.id
 
 
 @router.message(Command("export"))
 async def cmd_export(message: Message) -> None:
-    leads = db.all_leads()
+    leads = db.all_leads(scope(message))
     if not leads:
         await message.answer(config.TEXTS["no_leads"])
         return
@@ -26,7 +32,7 @@ async def cmd_export(message: Message) -> None:
 
 @router.message(Command("stats"))
 async def cmd_stats(message: Message) -> None:
-    s = db.stats()
+    s = db.stats(user_id=scope(message))
     await message.answer(f"Сегодня: {s['today']}\nЗа неделю: {s['week']}\nВсего: {s['total']}")
 
 
@@ -36,8 +42,11 @@ async def notify_admins(bot: Bot, lead_id: int, user: User, answers: dict[str, s
     if user.username:
         client += f" @{escape(user.username)}"
     text = f"Заявка #{lead_id}\n\n{lines}\n\nКлиент: {client}"
-    for admin_id in config.ADMIN_IDS:
+    targets = [(a, text) for a in config.ADMIN_IDS]
+    if config.DEMO_MODE and user.id not in config.ADMIN_IDS:
+        targets.append((user.id, f"{escape(config.TEXTS['demo_copy'])}\n\n{text}"))
+    for chat_id, body in targets:
         try:
-            await bot.send_message(admin_id, text, parse_mode="HTML")
+            await bot.send_message(chat_id, body, parse_mode="HTML")
         except Exception:
-            logging.exception("Не удалось уведомить админа %s", admin_id)
+            logging.exception("Не удалось отправить уведомление %s", chat_id)
