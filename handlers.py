@@ -27,7 +27,7 @@ def _kb(*buttons: tuple[str, str]):
     return b.as_markup()
 
 
-async def ask(message: Message, i: int) -> None:
+async def ask(message: Message, i: int, remove_kb: bool = False) -> None:
     step = STEPS[i]
     if step["type"] == "phone":
         kb = ReplyKeyboardMarkup(
@@ -39,14 +39,14 @@ async def ask(message: Message, i: int) -> None:
         kb = _kb(*((o, f"lead:opt:{n}") for n, o in enumerate(step["options"])))
         await message.answer(step["prompt"], reply_markup=kb)
     else:
-        await message.answer(step["prompt"])
+        await message.answer(step["prompt"], reply_markup=ReplyKeyboardRemove() if remove_kb else None)
 
 
-async def advance(message: Message, state: FSMContext, i: int, answers: dict) -> None:
+async def advance(message: Message, state: FSMContext, i: int, answers: dict, remove_kb: bool = False) -> None:
     i += 1
     await state.update_data(i=i, answers=answers)
     if i < len(STEPS):
-        await ask(message, i)
+        await ask(message, i, remove_kb)
         return
     lines = "\n".join(f"{s['title']}: {answers[s['key']]}" for s in STEPS)
     kb = _kb((TEXTS["send_button"], "lead:send"), (TEXTS["restart_button"], "lead:restart"))
@@ -140,6 +140,5 @@ async def on_answer(message: Message, state: FSMContext) -> None:
         await message.answer(TEXTS["bad_input"])
         await ask(message, i)
         return
-    if step["type"] == "phone":
-        await message.answer("Принято.", reply_markup=ReplyKeyboardRemove())
-    await advance(message, state, i, {**data["answers"], step["key"]: value})
+    # inline markup can't be combined with ReplyKeyboardRemove; the phone keyboard is one_time, so Telegram hides it anyway
+    await advance(message, state, i, {**data["answers"], step["key"]: value}, step["type"] == "phone")
